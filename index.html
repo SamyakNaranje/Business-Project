@@ -21,9 +21,9 @@ html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.5 system-ui, sans-serif; }
 a { color: inherit; text-decoration: none; }
 a:focus-visible { outline: 2px solid var(--berry); outline-offset: 5px; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
-button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--berry); outline-offset: 3px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--berry); outline-offset: 3px; }
 [hidden] { display: none !important; }
 .wrap { width: min(1160px, calc(100% - 56px)); margin-inline: auto; }
 .notice { background: #4b2030; color: #fff4f4; text-align: center; padding: .55rem 1rem; font-size: .875rem; }
@@ -80,6 +80,9 @@ h3 { font: 600 clamp(1rem, 2.1vw, 1.45rem)/1.2 var(--serif); margin-block: 0 .35
 .price { font-weight: 700; margin-block: 0 .95rem; }
 .product-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; padding-bottom: .85rem; }
 .product-actions .button { font-size: .875rem; padding: .55rem .85rem; }
+.button.in-cart { background: #e5f3e8; color: #225c34; box-shadow: inset 0 0 0 1px #aacdb2; }
+.button.in-cart:hover { background: #d6ebda; }
+.button.in-cart::before { content: '✓'; margin-right: .35rem; }
 .text-button { min-height: 44px; padding: .3rem .15rem; background: transparent; border: 0; color: var(--berry); font-weight: 600; text-decoration: underline; text-underline-offset: .2em; }
 #no-products { color: var(--muted); padding-block: 1rem; }
 dialog { width: min(34rem, calc(100% - 24px)); max-height: calc(100% - 24px); padding: clamp(16px, 4vw, 30px); border: 1px solid var(--line); border-radius: 1.25rem; background: var(--paper); color: var(--ink); box-shadow: 0 14px 55px #30212533; }
@@ -102,7 +105,15 @@ dialog::backdrop { background: #30212574; }
 .totals .total { border-top: 1px solid var(--line); padding-top: .65rem; font-weight: 700; }
 .full { width: 100%; }
 #checkout label { display: block; font-weight: 650; margin-bottom: .35rem; }
-#back-to-bag { display: block; margin: .3rem auto 0; }
+.checkout-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: .8rem; }
+.address-fields { min-inline-size: 0; margin: .85rem 0 0; padding: .7rem .8rem .55rem; border: 1px solid var(--line); border-radius: .8rem; }
+.address-fields legend { font-weight: 650; padding-inline: .3rem; }
+.checkout-fields input, .address-fields textarea { display: block; width: 100%; min-height: 44px; margin-top: .35rem; padding: .6rem .75rem; border: 1px solid #cdb3b6; border-radius: .65rem; background: white; color: var(--ink); font-weight: 400; }
+.address-fields textarea { resize: vertical; }
+.order-message { margin: 0 0 1rem; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: .75rem; background: white; font: inherit; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.whatsapp-button { background: #225c34; }
+.whatsapp-button:hover { background: #174726; }
+#back-to-bag, #edit-order { display: block; margin: .3rem auto 0; }
 .toast:empty { position: absolute; width: 1px; height: 1px; overflow: hidden; }
 .toast:not(:empty) { position: fixed; z-index: 1; bottom: 1rem; right: 1rem; margin: 0; max-width: calc(100% - 2rem); padding: .65rem 1rem; color: white; background: #4b2030; border-radius: .8rem; box-shadow: 0 4px 16px #30212533; }
 footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .65rem; padding: 1.5rem 0; border-top: 1px solid var(--line); }
@@ -123,6 +134,7 @@ footer p { color: var(--muted); margin: 0; }
   .delivery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .delivery div:last-child { grid-column: 1 / -1; }
   .search { width: 100%; }
+  .checkout-fields { grid-template-columns: 1fr; gap: .4rem; }
   .product-detail { grid-template-columns: 1fr; }
   .product-detail .photo { width: min(100%, 12rem); }
   .bag-row { grid-template-columns: 2.75rem minmax(0, 1fr); }
@@ -141,7 +153,7 @@ footer p { color: var(--muted); margin: 0; }
       <a href="#shop">Shop</a>
       <a href="#delivery">Delivery</a>
     </nav>
-    <button type="button" class="local bag-trigger" id="open-bag" aria-controls="bag-dialog">Bag <span id="bag-count">0</span></button>
+    <button type="button" class="local bag-trigger" id="open-bag" aria-controls="bag-dialog">Cart <span id="bag-count">0</span></button>
   </header>
   <main id="top" class="wrap">
     <section class="hero" aria-labelledby="intro">
@@ -157,7 +169,7 @@ footer p { color: var(--muted); margin: 0; }
     <section class="delivery" id="delivery" aria-label="District delivery options">
       <div><strong>District delivery</strong><span>Town centre, nearby towns and villages</span></div>
       <div><strong>Local pickup</strong><span>Collect from the boutique for free</span></div>
-      <div><strong>Cash on delivery</strong><span>Try the checkout with a sample order</span></div>
+      <div><strong>WhatsApp checkout</strong><span>Send your demo order to the boutique</span></div>
     </section>
 
     <section id="shop" class="shop" aria-labelledby="shop-heading">
@@ -216,22 +228,22 @@ footer p { color: var(--muted); margin: 0; }
     <div class="dialog-header"><h2 id="product-title"></h2><button type="button" class="close" data-close aria-label="Close product details">×</button></div>
     <div class="product-detail">
       <div id="detail-photo" class="photo" role="img"></div>
-      <div><p id="detail-description"></p><p class="price" id="detail-price"></p><button type="button" id="detail-add" class="button">Add to bag</button></div>
+      <div><p id="detail-description"></p><p class="price" id="detail-price"></p><button type="button" id="detail-add" class="button">Add to cart</button></div>
     </div>
   </dialog>
 
   <dialog id="bag-dialog" aria-labelledby="bag-title">
-    <div class="dialog-header"><h2 id="bag-title">Your bag</h2><button type="button" class="close" data-close aria-label="Close bag">×</button></div>
+    <div class="dialog-header"><h2 id="bag-title">Your cart</h2><button type="button" class="close" data-close aria-label="Close cart">×</button></div>
     <div id="bag-view">
-      <p id="empty-bag">Your bag is empty. Explore the collection to add something you like.</p>
-      <ul class="bag-items" id="bag-items" aria-label="Items in your bag"></ul>
+      <p id="empty-bag">Your cart is empty. Explore the collection to add something you like.</p>
+      <ul class="bag-items" id="bag-items" aria-label="Items in your cart"></ul>
       <div id="bag-summary" hidden>
         <p class="total"><span>Subtotal</span><strong id="subtotal"></strong></p>
         <button type="button" id="start-checkout" class="button full">Continue to checkout</button>
       </div>
     </div>
     <form id="checkout" hidden>
-      <p>Choose a sample delivery area to preview your total.</p>
+      <p>Fill in your details and choose a delivery area. You can review the order before opening WhatsApp.</p>
       <label for="area">Delivery area</label>
       <select id="area" required>
         <option value="">Select an area</option>
@@ -240,15 +252,28 @@ footer p { color: var(--muted); margin: 0; }
         <option value="village" data-fee="79">Village or outskirts · ₹79</option>
         <option value="pickup" data-fee="0">Boutique pickup · Free</option>
       </select>
+      <div class="checkout-fields">
+        <label for="customer-name">Full name<input id="customer-name" name="customerName" autocomplete="name" maxlength="80" required></label>
+        <label for="customer-phone">Mobile number<input id="customer-phone" name="customerPhone" type="tel" inputmode="tel" autocomplete="tel-national" pattern="[0-9]{10}" maxlength="10" placeholder="10-digit mobile number" required></label>
+      </div>
+      <fieldset class="address-fields" id="delivery-address" disabled hidden>
+        <legend>Delivery address</legend>
+        <label for="address-line">House number, building and street<textarea id="address-line" name="addressLine" autocomplete="street-address" rows="2" maxlength="180" required></textarea></label>
+        <div class="checkout-fields">
+          <label for="address-town">Town or village<input id="address-town" name="addressTown" autocomplete="address-level2" maxlength="80" required></label>
+          <label for="address-pin">PIN code<input id="address-pin" name="addressPin" inputmode="numeric" autocomplete="postal-code" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit PIN code" required></label>
+        </div>
+      </fieldset>
       <p id="payment-method" class="payment">Demo payment method · Cash on delivery</p>
       <dl class="totals"><div><dt>Subtotal</dt><dd id="checkout-subtotal"></dd></div><div><dt>Delivery</dt><dd id="delivery-fee"></dd></div><div class="total"><dt>Total</dt><dd id="checkout-total"></dd></div></dl>
-      <button type="submit" class="button full">Place demo order</button>
-      <button type="button" id="back-to-bag" class="text-button">Back to bag</button>
+      <button type="submit" class="button full">Review order</button>
+      <button type="button" id="back-to-bag" class="text-button">Back to cart</button>
     </form>
     <div id="confirmation" hidden>
-      <p>Demo order placed. No payment was taken and nothing will be shipped.</p>
-      <dl class="totals"><div><dt>Area</dt><dd id="order-area"></dd></div><div class="total"><dt>Demo order total</dt><dd id="order-total"></dd></div></dl>
-      <button type="button" class="button full" data-close>Continue shopping</button>
+      <p>Opening WhatsApp shares the details below with the boutique. Tap <strong>Send</strong> in WhatsApp to send your demo order.</p>
+      <pre class="order-message" id="order-message"></pre>
+      <a id="whatsapp-order" class="button full whatsapp-button" target="_blank" rel="noopener noreferrer">Open WhatsApp</a>
+      <button type="button" id="edit-order" class="text-button">Edit order details</button>
     </div>
   </dialog>
   <p class="toast" id="shop-status" role="status" aria-atomic="true"></p>
@@ -260,6 +285,7 @@ footer p { color: var(--muted); margin: 0; }
   });
   const products = new Map();
   const storageKey = 'glow-gather-demo-bag-v1';
+  const whatsappNumber = '918999463721';
   const search = byId('search');
   const productDialog = byId('product-dialog');
   const bagDialog = byId('bag-dialog');
@@ -267,7 +293,9 @@ footer p { color: var(--muted); margin: 0; }
   const bagItems = byId('bag-items');
   const checkout = byId('checkout');
   const area = byId('area');
+  const address = byId('delivery-address');
   const confirmation = byId('confirmation');
+  const whatsappOrder = byId('whatsapp-order');
   let currentProduct;
   let toastTimer;
 
@@ -276,15 +304,13 @@ footer p { color: var(--muted); margin: 0; }
     const name = card.querySelector('h3').textContent;
     const category = card.querySelector('.category').textContent;
     const alt = card.querySelector('.photo').getAttribute('aria-label');
-    products.set(id, { id, card, name, category, alt, price: Number(price), description });
-
     const actions = document.createElement('div');
     actions.className = 'product-actions';
-    actions.innerHTML = '<button type="button" class="button">Add to bag</button><button type="button" class="text-button">Details</button>';
+    actions.innerHTML = '<button type="button" class="button">Add to cart</button><button type="button" class="text-button">Details</button>';
     const [addButton, detailsButton] = actions.children;
-    addButton.setAttribute('aria-label', `Add ${name} to bag`);
+    products.set(id, { id, card, name, category, alt, price: Number(price), description, addButton });
     detailsButton.setAttribute('aria-label', `Details for ${name}`);
-    addButton.addEventListener('click', () => addToBag(id));
+    addButton.addEventListener('click', () => selectProduct(id));
     detailsButton.addEventListener('click', () => showProduct(id));
     card.append(actions);
   }
@@ -342,19 +368,26 @@ footer p { color: var(--muted); margin: 0; }
     byId('detail-photo').setAttribute('aria-label', item.alt);
     byId('detail-description').textContent = item.description;
     byId('detail-price').textContent = money.format(item.price);
+    updateAddButton(byId('detail-add'), item);
     productDialog.showModal();
   }
 
-  function addToBag(id) {
-    const count = bag.get(id) || 0;
-    if (count === 99) {
-      announce('Your bag already has 99 of this item.');
+  function updateAddButton(button, item) {
+    const added = bag.has(item.id);
+    button.classList.toggle('in-cart', added);
+    button.textContent = added ? 'Added to cart' : 'Add to cart';
+    button.setAttribute('aria-label', added ? `${item.name} added to cart. View cart` : `Add ${item.name} to cart`);
+  }
+
+  function selectProduct(id) {
+    if (bag.has(id)) {
+      openCart();
       return;
     }
-    bag.set(id, count + 1);
+    bag.set(id, 1);
     saveBag();
     renderBag();
-    announce(`${products.get(id).name} added to your bag.`);
+    announce(`${products.get(id).name} added to your cart.`);
   }
 
   function createBagRow(item, count) {
@@ -374,6 +407,7 @@ footer p { color: var(--muted); margin: 0; }
   }
 
   function renderBag() {
+    for (const item of products.values()) updateAddButton(item.addButton, item);
     byId('bag-count').textContent = Array.from(bag.values()).reduce((sum, count) => sum + count, 0);
     byId('empty-bag').hidden = bag.size > 0;
     byId('bag-summary').hidden = bag.size === 0;
@@ -386,16 +420,54 @@ footer p { color: var(--muted); margin: 0; }
     for (const view of [bagView, checkout, confirmation]) view.hidden = view !== step;
   }
 
+  function openCart() {
+    showBagStep(bagView, 'Your cart');
+    bagDialog.showModal();
+  }
+
   function updateQuote() {
     const delivery = area.selectedOptions[0];
     const fee = Number(delivery.dataset.fee || 0);
     const items = subtotal();
+    const needsAddress = !!area.value && area.value !== 'pickup';
+    address.hidden = !needsAddress;
+    address.disabled = !needsAddress;
     byId('checkout-subtotal').textContent = money.format(items);
     byId('delivery-fee').textContent = area.value ? (fee ? money.format(fee) : 'Free') : 'Select an area';
     byId('checkout-total').textContent = area.value ? money.format(items + fee) : '—';
     byId('payment-method').textContent = area.value === 'pickup'
       ? 'Demo payment method · Pay at pickup' : 'Demo payment method · Cash on delivery';
-    return { delivery, total: items + fee };
+    return { delivery, fee, items, total: items + fee };
+  }
+
+  function getOrderDetails() {
+    const details = new FormData(checkout);
+    const fields = Object.fromEntries(Array.from(details, ([key, value]) => [key, value.trim()]));
+    for (const key of Object.keys(fields)) {
+      if (fields[key]) continue;
+      const field = checkout.elements.namedItem(key);
+      field.setCustomValidity('Please fill in this field.');
+      field.reportValidity();
+      return null;
+    }
+    return fields;
+  }
+
+  function buildOrderMessage(details) {
+    const { delivery, fee, items, total } = updateQuote();
+    const lines = Array.from(bag, ([id, count]) => {
+      const item = products.get(id);
+      return `• ${item.name} × ${count} — ${money.format(item.price * count)}`;
+    });
+    const pickup = area.value === 'pickup';
+    const destination = pickup ? 'Boutique pickup' : `${details.addressLine}, ${details.addressTown} – ${details.addressPin}`;
+    return [
+      'Glow & Gather — demo order request', '', ...lines, '',
+      `Subtotal: ${money.format(items)}`, `Delivery: ${fee ? money.format(fee) : 'Free'}`,
+      `Total: ${money.format(total)}`, `Area: ${delivery.textContent.split(' · ')[0]}`,
+      `Payment: ${pickup ? 'Pay at pickup' : 'Cash on delivery'}`, '',
+      `Name: ${details.customerName}`, `Mobile: ${details.customerPhone}`, `Address: ${destination}`,
+    ].join('\n');
   }
 
   search.addEventListener('input', renderCatalog);
@@ -408,12 +480,9 @@ footer p { color: var(--muted); margin: 0; }
 
   byId('detail-add').addEventListener('click', () => {
     productDialog.close();
-    addToBag(currentProduct);
+    selectProduct(currentProduct);
   });
-  byId('open-bag').addEventListener('click', () => {
-    showBagStep(bagView, 'Your bag');
-    bagDialog.showModal();
-  });
+  byId('open-bag').addEventListener('click', openCart);
   bagItems.addEventListener('click', event => {
     const button = event.target.closest('[data-change]');
     if (!button) return;
@@ -429,27 +498,36 @@ footer p { color: var(--muted); margin: 0; }
     replacement.focus();
   });
   byId('start-checkout').addEventListener('click', () => {
-    checkout.reset();
     updateQuote();
     showBagStep(checkout, 'Checkout');
     area.focus();
   });
   byId('back-to-bag').addEventListener('click', () => {
-    showBagStep(bagView, 'Your bag');
+    showBagStep(bagView, 'Your cart');
     byId('start-checkout').focus();
+  });
+  byId('edit-order').addEventListener('click', () => {
+    showBagStep(checkout, 'Checkout');
+    area.focus();
+  });
+  checkout.addEventListener('input', event => event.target.setCustomValidity(''));
+  bagDialog.addEventListener('close', () => {
+    for (const field of checkout.elements) field.setCustomValidity?.('');
+    checkout.reset();
+    whatsappOrder.removeAttribute('href');
+    byId('order-message').textContent = '';
   });
   area.addEventListener('change', updateQuote);
   checkout.addEventListener('submit', event => {
     event.preventDefault();
     if (!area.value || !bag.size) return;
-    const { delivery, total } = updateQuote();
-    byId('order-area').textContent = delivery.textContent.split(' · ')[0];
-    byId('order-total').textContent = money.format(total);
-    bag.clear();
-    saveBag();
-    renderBag();
-    showBagStep(confirmation, 'Order preview');
-    confirmation.querySelector('button').focus();
+    const details = getOrderDetails();
+    if (!details) return;
+    const message = buildOrderMessage(details);
+    byId('order-message').textContent = message;
+    whatsappOrder.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    showBagStep(confirmation, 'Review your order');
+    whatsappOrder.focus();
   });
 })();
 
