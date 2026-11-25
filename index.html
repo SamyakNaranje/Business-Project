@@ -137,7 +137,14 @@ dialog > :not(.dialog-header) { margin-top: .85rem; }
 .upi-panel img { display: block; width: 100%; max-width: 13rem; height: auto; margin-inline: auto; }
 .upi-info p { margin: 0 0 .5rem; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
 .upi-info strong { color: var(--ink); font-size: 1.1rem; }
-.upi-reference { grid-column: 1 / -1; }
+.upi-reference, .upi-launch { grid-column: 1 / -1; }
+.upi-fallbacks, .upi-apps { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .65rem; }
+.upi-fallbacks .text-button { display: inline-flex; align-items: center; font-size: .9rem; }
+.upi-launch { padding-top: .65rem; border-top: 1px solid var(--line); }
+.upi-launch p { margin: 0 0 .45rem; font-size: .9rem; }
+.upi-launch-label { font-weight: 650; }
+.upi-apps { margin-bottom: .55rem; }
+.upi-apps .button { padding: .45rem .75rem; font-size: .875rem; }
 .order-message { margin: 0 0 1rem; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: .75rem; background: white; font: inherit; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .whatsapp-button { background: #225c34; }
 .whatsapp-button:hover { background: #174726; }
@@ -168,6 +175,7 @@ footer p { color: var(--muted); margin: 0; }
   .checkout-fields { grid-template-columns: 1fr; gap: .4rem; }
   .upi-panel { grid-template-columns: 1fr; }
   .upi-info { text-align: center; }
+  .upi-fallbacks { justify-content: center; }
   .product-detail { grid-template-columns: 1fr; }
   .product-detail .photo { width: min(100%, 10rem); }
   .bag-row { grid-template-columns: 2.75rem minmax(0, 1fr); }
@@ -396,8 +404,22 @@ footer p { color: var(--muted); margin: 0; }
         <img id="upi-code" alt="UPI payment QR code">
         <div class="upi-info">
           <p><strong id="upi-amount"></strong><br><span id="upi-payee"></span></p>
-          <p>Scan with a UPI app or open the app on this phone. UPI starts a real payment. The shop verifies receipts separately.</p>
-          <a id="upi-link" class="button">Open UPI app</a>
+          <p>Scan with a UPI app. Your bank will process a real payment and the shop verifies receipts separately.</p>
+          <div class="upi-fallbacks">
+            <a id="save-upi-qr" class="text-button" download="glow-and-gather-upi.gif">Save QR</a>
+            <button type="button" class="text-button" id="copy-upi-id" hidden>Copy UPI ID</button>
+          </div>
+          <span class="sr-only" role="status" id="upi-copy-status"></span>
+        </div>
+        <div class="upi-launch" id="upi-launch" hidden>
+          <p class="upi-launch-label">Open an installed UPI app</p>
+          <div class="upi-apps">
+            <a class="button" id="upi-google-pay">Google Pay</a>
+            <a class="button" id="upi-phonepe">PhonePe</a>
+            <a class="button" id="upi-paytm">Paytm</a>
+            <a class="button" id="upi-other" hidden>Other UPI app</a>
+          </div>
+          <p class="payment" id="upi-launch-help"></p>
         </div>
         <label class="upi-reference" for="upi-reference">UPI transaction reference (optional)
           <input type="text" id="upi-reference" name="paymentReference" maxlength="32" pattern="[A-Za-z0-9]{6,32}" autocomplete="off" disabled>
@@ -2759,7 +2781,15 @@ var qrcode = function() {
   const address = byId('delivery-address');
   const upiPanel = byId('upi-panel');
   const upiCode = byId('upi-code');
-  const upiLink = byId('upi-link');
+  const saveUpiQr = byId('save-upi-qr');
+  const copyUpiId = byId('copy-upi-id');
+  const upiLaunch = byId('upi-launch');
+  const otherUpiApp = byId('upi-other');
+  const upiApps = [
+    { link: byId('upi-google-pay'), androidPackage: 'com.google.android.apps.nbu.paisa.user', iosPrefix: 'gpay://upi/pay' },
+    { link: byId('upi-phonepe'), androidPackage: 'com.phonepe.app', iosPrefix: 'phonepe://pay' },
+    { link: byId('upi-paytm'), androidPackage: 'net.one97.paytm', iosPrefix: 'paytmmp://upi/pay' },
+  ];
   const upiReference = byId('upi-reference');
   const confirmation = byId('confirmation');
   const whatsappOrder = byId('whatsapp-order');
@@ -2938,11 +2968,36 @@ var qrcode = function() {
 
     upiQuote = { total, reference };
     upiReference.value = '';
-    upiCode.src = qr.createDataURL(6, 24);
+    const qrImage = qr.createDataURL(6, 24);
+    upiCode.src = qrImage;
+    saveUpiQr.href = qrImage;
     upiCode.alt = `Scan to pay ${money.format(total)} to ${upiPayee} via UPI`;
-    upiLink.href = url;
+    renderUpiAppLinks(query, url);
     byId('upi-amount').textContent = money.format(total);
     byId('upi-payee').textContent = upiPayee;
+  }
+
+  function getUpiPlatform(device) {
+    if (device.userAgentData?.platform === 'Android' || /Android/i.test(device.userAgent)) return 'android';
+    if (/iPhone|iPad|iPod/i.test(device.userAgent) || (device.platform === 'MacIntel' && device.maxTouchPoints > 1)) return 'ios';
+    return 'desktop';
+  }
+
+  function renderUpiAppLinks(query, genericUrl) {
+    const platform = getUpiPlatform(navigator);
+    upiLaunch.hidden = platform === 'desktop';
+    otherUpiApp.hidden = platform !== 'android';
+    if (platform === 'desktop') return;
+
+    for (const { link, androidPackage, iosPrefix } of upiApps) {
+      link.href = platform === 'android'
+        ? `intent://pay?${query}#Intent;scheme=upi;package=${androidPackage};end`
+        : `${iosPrefix}?${query}`;
+    }
+    if (platform === 'android') otherUpiApp.href = genericUrl;
+    byId('upi-launch-help').textContent = platform === 'android'
+      ? 'If an app does not open, open this store directly in Chrome, or save the QR and scan it from your payment app.'
+      : 'If an app does not open, open this store directly in Safari, or save the QR and scan it from your payment app.';
   }
 
   function getOrderDetails() {
@@ -3021,13 +3076,30 @@ var qrcode = function() {
     area.focus();
   });
   checkout.addEventListener('input', event => event.target.setCustomValidity(''));
+  if (navigator.clipboard?.writeText) {
+    copyUpiId.hidden = false;
+    copyUpiId.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(upiPayee);
+        copyUpiId.textContent = 'UPI ID copied';
+        byId('upi-copy-status').textContent = 'UPI ID copied to clipboard.';
+      } catch {
+        copyUpiId.textContent = 'Copy the displayed UPI ID';
+        byId('upi-copy-status').textContent = 'Copy the UPI ID shown above.';
+      }
+    });
+  }
   bagDialog.addEventListener('close', () => {
     for (const field of checkout.elements) field.setCustomValidity?.('');
     checkout.reset();
     upiQuote = undefined;
     upiPanel.hidden = true;
     upiCode.removeAttribute('src');
-    upiLink.removeAttribute('href');
+    saveUpiQr.removeAttribute('href');
+    for (const { link } of upiApps) link.removeAttribute('href');
+    otherUpiApp.removeAttribute('href');
+    copyUpiId.textContent = 'Copy UPI ID';
+    byId('upi-copy-status').textContent = '';
     whatsappOrder.removeAttribute('href');
     byId('order-message').textContent = '';
   });
