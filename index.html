@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="description" content="Shop sample makeup, skincare, salon supplies, jewellery and bags in a district-wide storefront prototype.">
-  <title>Glow & Gather | Local Boutique</title>
+  <meta name="description" content="Shop sample makeup, skincare, salon supplies, jewellery and bags at The Beauty Hub.">
+  <title>The Beauty Hub | Local Boutique</title>
   <style>
 :root {
   color-scheme: light;
@@ -187,7 +187,7 @@ footer p { color: var(--muted); margin: 0; }
 <body>
   <div class="notice">District shopping prototype <span aria-hidden="true">·</span> Demo orders only</div>
   <header class="header wrap">
-    <a class="brand" href="#top">Glow <i>&amp;</i> Gather<span>.</span></a>
+    <a class="brand" href="#top">The <i>Beauty</i> Hub<span aria-hidden="true">.</span></a>
     <nav aria-label="Main navigation">
       <a href="#shop">Shop</a>
       <a href="#delivery">Delivery</a>
@@ -341,7 +341,7 @@ footer p { color: var(--muted); margin: 0; }
       </fieldset>
     </section>
     <footer id="about">
-      <a class="brand" href="#top">Glow <i>&amp;</i> Gather<span>.</span></a>
+      <a class="brand" href="#top">The <i>Beauty</i> Hub<span aria-hidden="true">.</span></a>
       <p>Sample products, delivery areas and prices.</p>
     </footer>
   </main>
@@ -2748,6 +2748,7 @@ var qrcode = function() {
     style: 'currency', currency: 'INR', maximumFractionDigits: 0,
   });
   const products = new Map();
+  const storeName = 'The Beauty Hub';
   const storageKey = 'glow-gather-demo-bag-v1';
   const whatsappNumber = '918999463721';
   const upiPayee = 'samyaknaranje@ybl';
@@ -2929,8 +2930,8 @@ var qrcode = function() {
 
     const reference = newOrderReference();
     const parameters = {
-      pa: upiPayee, pn: 'Glow & Gather', tr: reference,
-      tn: 'Glow & Gather order', am: total.toFixed(2), cu: 'INR',
+      pa: upiPayee, pn: storeName, tr: reference,
+      tn: `${storeName} order`, am: total.toFixed(2), cu: 'INR',
     };
     const query = Object.entries(parameters).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join('&');
     const url = `upi://pay?${query}`;
@@ -2984,7 +2985,7 @@ var qrcode = function() {
       : [`Payment: ${pickup ? 'Cash at pickup' : 'Cash on delivery'}`];
     if (details.paymentReference) payment.push(`UPI transaction reference: ${details.paymentReference}`);
     return [
-      'Glow & Gather — demo order request', '', ...lines, '',
+      `${storeName} — demo order request`, '', ...lines, '',
       `Subtotal: ${money.format(items)}`, `Delivery: ${fee ? money.format(fee) : 'Free'}`,
       `Total: ${money.format(total)}`, `Area: ${delivery.textContent.split(' · ')[0]}`,
       ...payment, '',
