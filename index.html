@@ -133,18 +133,15 @@ dialog > :not(.dialog-header) { margin-top: .85rem; }
 .payment-options legend { padding: 0 0 .35rem; font-weight: 650; }
 #checkout .payment-options label { display: flex; align-items: center; gap: .45rem; min-height: 44px; margin: 0; padding: .5rem .6rem; border: 1px solid #cdb3b6; border-radius: .65rem; background: white; cursor: pointer; font-size: .9rem; }
 .payment-options input { flex: none; margin: 0; accent-color: var(--berry); }
+.upi-pay { margin-bottom: .75rem; }
+.upi-pay:disabled { opacity: .6; cursor: default; }
 .upi-panel { display: grid; grid-template-columns: minmax(0, 10rem) minmax(0, 1fr); gap: .75rem; align-items: center; margin-bottom: .85rem; padding: .65rem; border: 1px solid var(--line); border-radius: .8rem; background: white; }
 .upi-panel img { display: block; width: 100%; max-width: 13rem; height: auto; margin-inline: auto; }
 .upi-info p { margin: 0 0 .5rem; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
 .upi-info strong { color: var(--ink); font-size: 1.1rem; }
-.upi-reference, .upi-launch { grid-column: 1 / -1; }
-.upi-fallbacks, .upi-apps { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .65rem; }
+.upi-reference { grid-column: 1 / -1; }
+.upi-fallbacks { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .65rem; }
 .upi-fallbacks .text-button { display: inline-flex; align-items: center; font-size: .9rem; }
-.upi-launch { padding-top: .65rem; border-top: 1px solid var(--line); }
-.upi-launch p { margin: 0 0 .45rem; font-size: .9rem; }
-.upi-launch-label { font-weight: 650; }
-.upi-apps { margin-bottom: .55rem; }
-.upi-apps .button { padding: .45rem .75rem; font-size: .875rem; }
 .order-message { margin: 0 0 1rem; padding: .8rem 1rem; border: 1px solid var(--line); border-radius: .75rem; background: white; font: inherit; font-size: .9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .whatsapp-button { background: #225c34; }
 .whatsapp-button:hover { background: #174726; }
@@ -407,7 +404,8 @@ footer p { color: var(--muted); margin: 0; }
         <label><input type="radio" name="paymentMethod" value="cash"> <span id="cash-label">Cash on delivery</span></label>
         <label><input type="radio" name="paymentMethod" value="upi" checked> <span>UPI QR</span></label>
       </fieldset>
-      <p class="payment" id="upi-awaiting-area" hidden>Select a delivery area to generate the QR for your final total.</p>
+      <button type="button" class="button full upi-pay" id="pay-with-upi" aria-controls="upi-panel" aria-expanded="false" hidden disabled>Pay With UPI</button>
+      <p class="payment" id="upi-awaiting-area" hidden>Select a delivery area to see your payment total.</p>
       <div class="upi-panel" id="upi-panel" hidden>
         <img id="upi-code" alt="UPI payment QR code">
         <div class="upi-info">
@@ -418,16 +416,6 @@ footer p { color: var(--muted); margin: 0; }
             <button type="button" class="text-button" id="copy-upi-id" hidden>Copy UPI ID</button>
           </div>
           <span class="sr-only" role="status" id="upi-copy-status"></span>
-        </div>
-        <div class="upi-launch" id="upi-launch" hidden>
-          <p class="upi-launch-label">Open an installed UPI app</p>
-          <div class="upi-apps">
-            <a class="button" id="upi-google-pay">Google Pay</a>
-            <a class="button" id="upi-phonepe">PhonePe</a>
-            <a class="button" id="upi-paytm">Paytm</a>
-            <a class="button" id="upi-other" hidden>Other UPI app</a>
-          </div>
-          <p class="payment" id="upi-launch-help"></p>
         </div>
         <label class="upi-reference" for="upi-reference">UPI transaction reference (optional)
           <input type="text" id="upi-reference" name="paymentReference" maxlength="32" pattern="[A-Za-z0-9]{6,32}" autocomplete="off" disabled>
@@ -2995,17 +2983,11 @@ function assembleInvoicePdf(pages, width, height, scale) {
   const checkout = byId('checkout');
   const area = byId('area');
   const address = byId('delivery-address');
+  const payWithUpi = byId('pay-with-upi');
   const upiPanel = byId('upi-panel');
   const upiCode = byId('upi-code');
   const saveUpiQr = byId('save-upi-qr');
   const copyUpiId = byId('copy-upi-id');
-  const upiLaunch = byId('upi-launch');
-  const otherUpiApp = byId('upi-other');
-  const upiApps = [
-    { link: byId('upi-google-pay'), androidPackage: 'com.google.android.apps.nbu.paisa.user', iosPrefix: 'gpay://upi/pay' },
-    { link: byId('upi-phonepe'), androidPackage: 'com.phonepe.app', iosPrefix: 'phonepe://pay' },
-    { link: byId('upi-paytm'), androidPackage: 'net.one97.paytm', iosPrefix: 'paytmmp://upi/pay' },
-  ];
   const upiReference = byId('upi-reference');
   const confirmation = byId('confirmation');
   const whatsappOrder = byId('whatsapp-order');
@@ -3175,8 +3157,9 @@ function assembleInvoicePdf(pages, width, height, scale) {
     const selected = checkout.elements.paymentMethod.value === 'upi';
     const ready = selected && !!area.value && total > 0;
     byId('upi-awaiting-area').hidden = !selected || !!area.value;
-    upiPanel.hidden = !ready;
-    upiReference.disabled = !ready;
+    payWithUpi.hidden = !selected;
+    payWithUpi.disabled = !ready;
+    if (!ready) setUpiPanel(false);
     if (!ready || upiQuote?.total === total) return;
 
     const reference = newOrderReference();
@@ -3196,7 +3179,6 @@ function assembleInvoicePdf(pages, width, height, scale) {
     upiCode.src = qrImage;
     saveUpiQr.href = qrImage;
     upiCode.alt = `Scan to pay ${money.format(total)} to ${upiPayee} via UPI`;
-    renderUpiAppLinks(query, url);
     byId('upi-amount').textContent = money.format(total);
     byId('upi-payee').textContent = upiPayee;
   }
@@ -3206,27 +3188,10 @@ function assembleInvoicePdf(pages, width, height, scale) {
     return `GG${suffix.toUpperCase()}`;
   }
 
-  function getUpiPlatform(device) {
-    if (device.userAgentData?.platform === 'Android' || /Android/i.test(device.userAgent)) return 'android';
-    if (/iPhone|iPad|iPod/i.test(device.userAgent) || (device.platform === 'MacIntel' && device.maxTouchPoints > 1)) return 'ios';
-    return 'desktop';
-  }
-
-  function renderUpiAppLinks(query, genericUrl) {
-    const platform = getUpiPlatform(navigator);
-    upiLaunch.hidden = platform === 'desktop';
-    otherUpiApp.hidden = platform !== 'android';
-    if (platform === 'desktop') return;
-
-    for (const { link, androidPackage, iosPrefix } of upiApps) {
-      link.href = platform === 'android'
-        ? `intent://pay?${query}#Intent;scheme=upi;package=${androidPackage};end`
-        : `${iosPrefix}?${query}`;
-    }
-    if (platform === 'android') otherUpiApp.href = genericUrl;
-    byId('upi-launch-help').textContent = platform === 'android'
-      ? 'If an app does not open, open this store directly in Chrome, or save the QR and scan it from your payment app.'
-      : 'If an app does not open, open this store directly in Safari, or save the QR and scan it from your payment app.';
+  function setUpiPanel(expanded) {
+    upiPanel.hidden = !expanded;
+    upiReference.disabled = !expanded;
+    payWithUpi.setAttribute('aria-expanded', String(expanded));
   }
 
   function getOrderDetails() {
@@ -3340,6 +3305,7 @@ function assembleInvoicePdf(pages, width, height, scale) {
     area.focus();
   });
   checkout.addEventListener('input', event => event.target.setCustomValidity(''));
+  payWithUpi.addEventListener('click', () => setUpiPanel(upiPanel.hidden));
   if (navigator.clipboard?.writeText) {
     copyUpiId.hidden = false;
     copyUpiId.addEventListener('click', async () => {
@@ -3395,11 +3361,9 @@ function assembleInvoicePdf(pages, width, height, scale) {
     for (const field of checkout.elements) field.setCustomValidity?.('');
     checkout.reset();
     upiQuote = undefined;
-    upiPanel.hidden = true;
+    setUpiPanel(false);
     upiCode.removeAttribute('src');
     saveUpiQr.removeAttribute('href');
-    for (const { link } of upiApps) link.removeAttribute('href');
-    otherUpiApp.removeAttribute('href');
     copyUpiId.textContent = 'Copy UPI ID';
     byId('upi-copy-status').textContent = '';
     whatsappOrder.removeAttribute('href');
