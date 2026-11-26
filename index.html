@@ -396,11 +396,16 @@ footer p { color: var(--muted); margin: 0; }
       <div class="upi-panel" id="upi-panel" hidden>
         <div class="upi-qr">
           <img id="upi-code" alt="UPI payment QR code">
-          <a id="pay-with-upi" class="button full">Pay by UPI</a>
+          <a id="pay-with-upi" class="button full">Open UPI app</a>
+          <a id="pay-google" class="button full">Google Pay</a>
+          <a id="pay-phonepe" class="button full">PhonePe</a>
+          <a id="pay-paytm" class="button full">Paytm</a>
         </div>
         <div class="upi-info">
           <p><strong id="upi-amount"></strong><br><span id="upi-payee"></span></p>
-          <p>Scan the QR or tap Pay by UPI on a compatible phone. The shop verifies receipts separately.</p>
+          <button type="button" id="copy-upi" class="button full">Copy UPI ID</button>
+          <p id="copy-upi-status" role="status"></p>
+          <p>Choose an installed UPI app, or scan this QR from another phone. If the app does not open, open your UPI app manually and pay the exact amount to the UPI ID below. You can also save the QR image and import it in an app that supports gallery scanning. The shop verifies receipts separately.</p>
         </div>
         <label class="upi-reference" for="upi-reference">UPI transaction reference (optional)
           <input type="text" id="upi-reference" name="paymentReference" maxlength="32" pattern="[A-Za-z0-9]{6,32}" autocomplete="off" disabled>
@@ -2943,7 +2948,11 @@ var qrcode = function() {
     upiReference.value = '';
     upiCode.src = qr.createDataURL(6, 24);
     upiCode.alt = `Scan to pay ${money.format(total)} to ${upiPayee} via UPI`;
-    payWithUpi.href = paymentLink(url, query, navigator);
+    payWithUpi.href = url;
+    byId("pay-google").href = `gpay://upi/pay?${query}`;
+    byId("pay-phonepe").href = `phonepe://pay?${query}`;
+    byId("pay-paytm").href = `paytmmp://pay?${query}`;
+    byId("copy-upi-status").textContent = "";
     byId('upi-amount').textContent = money.format(total);
     byId('upi-payee').textContent = upiPayee;
   }
@@ -2953,11 +2962,14 @@ var qrcode = function() {
     return `GG${suffix.toUpperCase()}`;
   }
 
-  function paymentLink(url, query, device) {
-    const ios = /iPhone|iPad|iPod/i.test(device.userAgent) ||
-      (device.platform === 'MacIntel' && device.maxTouchPoints > 1);
-    return ios ? `gpay://upi/pay?${query}` : url;
-  }
+  byId('copy-upi').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(upiPayee);
+      byId('copy-upi-status').textContent = 'UPI ID copied.';
+    } catch {
+      byId('copy-upi-status').textContent = 'Please select and copy the UPI ID shown above.';
+    }
+  });
 
   function getOrderDetails() {
     const details = new FormData(checkout);
@@ -3042,6 +3054,8 @@ var qrcode = function() {
     renderUpi(0);
     upiCode.removeAttribute('src');
     payWithUpi.removeAttribute('href');
+    for (const id of ['pay-google', 'pay-phonepe', 'pay-paytm']) byId(id).removeAttribute('href');
+    byId('copy-upi-status').textContent = '';
     whatsappOrder.removeAttribute('href');
     byId('order-message').textContent = '';
   });
